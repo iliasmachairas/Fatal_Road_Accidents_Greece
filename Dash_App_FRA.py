@@ -8,6 +8,7 @@ import plotly.express as px
 import numpy as np
 #import geopandas as gpd
 import sys
+import plotly.graph_objects as go
 
 print(sys.executable)
 car = 'Ι.Χ.Ε.'
@@ -18,7 +19,7 @@ FRA = pd.read_csv('Data/FRA_df.csv', encoding='utf-8')
 FRA['Date'] = pd.to_datetime(FRA['Date'])
 FRA['year'] = (FRA.Date.dt.year).astype(int)
 #FRA['year'] = FRA['year'].astype(str)
-print(FRA.head())
+#print(FRA.head())
 #print(FRA.dtypes)
 
 app = dash.Dash(__name__)
@@ -30,7 +31,7 @@ app.layout = html.Div([
         "Select vehicle: ",
         dcc.RadioItems(id='vehicle-radio',
         options=[
-        {'label': 'car', 'value': car},
+        {'label': 'car', 'value': 'car'},
         {'label': 'motorcycle', 'value': 'motorcycle'},
         {'label': 'Other', 'value': 'Other'},
         {'label': 'All', 'value': 'All'}
@@ -59,60 +60,57 @@ app.layout = html.Div([
     html.Div(dcc.Graph(id='Bar-charts-Age_group')),
     html.Br(),
 
-    #html.Div(dcc.Graph(id='Map-FRA')),
-    #html.Br(),
+    html.Div(dcc.Graph(id='pie-chart-Time')),
+    html.Br(),
 
-    #html.Div(dcc.Graph(id='pie-chart-Time')),
-    #html.Br(),
+    html.Div(dcc.Graph(id='Map-FRA')),
+    html.Br()
 ])
-
-# 2 inputs - 3 outputs
-#@app.callback(
-#    Output(component_id='my-output', component_property='children'),
-#    Input(component_id='my-input', component_property='value')
-#)
 
 @app.callback(
     Output(component_id='Bar-charts-Age_group', component_property='figure'),
     [Input(component_id='vehicle-radio', component_property='value'),
     Input(component_id="year-dropdown", component_property="value")])
 
-#def update_output_div(input_value):
-#    return 'Output: {}'.format(input_value)
-#print(type(value_vehicle))
-
 def update_output_barplot(value_vehicle, value_year):
-    # value year
-    if value_year=='All':
-        #sel_years = [np.arange(2011,2015)]
-        df_clip_1 = FRA.copy()
-    else:
-        sel_years = [value_year]
-        #mask_1 = FRA.year.isin(sel_years)
-        df_clip_1 = FRA[FRA.year == value_year].copy()
-        # print(type(value_year))
-    
-    # value vehicle
-    if value_vehicle=='All':
-        #sel_vehicle = ['car', 'motorcycle', 'Other']
-        df_clip_2 = df_clip_1.copy()
-    else:
-        #sel_vehicle = [value_vehicle]
-        df_clip_2 = df_clip_1[df_clip_1.Vehicle == value_vehicle].copy()
-        #mask_2 = df_clip_1.Vehicle.isin(sel_vehicle)
-        #df_clip_2 = df_clip_1.loc[mask_2]
-    
+    df_clip_1 = FRA.copy() if value_year=='All' else FRA[FRA.year == value_year].copy()
+    df_clip_2 = df_clip_1.copy() if value_vehicle=='All' else df_clip_1[df_clip_1.Vehicle == value_vehicle].copy()
     time_series_Age = df_clip_2.Age.value_counts()
     time_series_Age = time_series_Age.to_frame()
-    #return time_series_Age
     fig = px.bar(time_series_Age, x='Age', y=time_series_Age.index, title="Age groups",orientation='h')
     fig.update_layout(
         title="Age Groups",
         xaxis_title="Count",
         yaxis_title="Age Group")
     return fig
-    #fig.show()
 
+@app.callback(
+    Output(component_id='pie-chart-Time', component_property='figure'),
+    [Input(component_id='vehicle-radio', component_property='value'),
+    Input(component_id="year-dropdown", component_property="value")])
+
+def update_output_pieplot(value_vehicle, value_year):
+    df_clip_1 = FRA.copy() if value_year=='All' else FRA[FRA.year == value_year].copy()
+    df_clip_2 = df_clip_1.copy() if value_vehicle=='All' else df_clip_1[df_clip_1.Vehicle == value_vehicle].copy()
+    time_series = df_clip_2.Time.value_counts()
+    time_series = time_series.to_frame()
+    #print(time_series.head())
+    fig2 = go.Figure(data=[go.Pie(labels=time_series.index, values=time_series.Time, hole=.3)])
+    return fig2
+
+@app.callback(
+    Output(component_id='Map-FRA', component_property='figure'),
+    [Input(component_id='vehicle-radio', component_property='value'),
+    Input(component_id="year-dropdown", component_property="value")])
+
+# Add the map
+def update_output_pieplot(value_vehicle, value_year):
+    df_clip_1 = FRA.copy() if value_year=='All' else FRA[FRA.year == value_year].copy()
+    df_clip_2 = df_clip_1.copy() if value_vehicle=='All' else df_clip_1[df_clip_1.Vehicle == value_vehicle].copy()
+    fig = px.scatter_mapbox(df_clip_2, lon='x', lat='y',
+                        color_discrete_sequence=["fuchsia"], hover_data=["Date", "Time"], zoom=9, height=500)
+    fig.update_layout(mapbox_style="open-street-map")
+    return fig
 
 if __name__ == '__main__':
     app.run_server(debug=True)
